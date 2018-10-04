@@ -207,7 +207,7 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
                 // perform the biometrics check
                 self.authenticateBiometrics(completion: { (authenticated) in
                     if authenticated {
-                        // Removes the goal from persistent storage
+                        // Removes the note from persistent storage
                         self.myNotes[indexPath.row].deleteFromData(db: self.db, completion: { (success) in
                             if success {
                                 print("We deleted the data - YEA!!!!)")
@@ -217,17 +217,17 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
                         })
                         
                         DispatchQueue.main.async {
-                            // Reload the local goals array from persisten storage
+                            // Reload the local notes array from persisten storage
                             self.fetchCoreDataObjects()
                             
-                            // Remove the deleted goal from the table view
+                            // Remove the deleted note from the table view
                             self.tableView.deleteRows(at: [indexPath], with: .automatic)
                         }
 
                     }
                 })
             } else {
-                // Removes the goal from persistent storage
+                // Removes the note from persistent storage
                 self.myNotes[indexPath.row].deleteFromData(db: self.db, completion: { (success) in
                     if success {
                         print("We deleted the data - YEA!!!!)")
@@ -236,10 +236,10 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
                     }
                 })
                 
-                // Reload the local goals array from persisten storage
+                // Reload the local notes array from persisten storage
                 self.fetchCoreDataObjects()
                 
-                // Remove the deleted goal from the table view
+                // Remove the deleted note from the table view
                 tableView.deleteRows(at: [indexPath], with: .automatic)
                 
             }
