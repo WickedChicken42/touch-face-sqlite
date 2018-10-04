@@ -13,11 +13,12 @@ class NoteDetailVC: UIViewController {
     @IBOutlet var noteTextView: UITextView!
     
     var currentNote: Note!
-    //var index: Int!
-
+    var db: OpaquePointer?
+    var lockNote: Bool = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         // Do any additional setup after loading the view.
 
         noteTextView.text = currentNote.message
@@ -25,16 +26,16 @@ class NoteDetailVC: UIViewController {
     
     @IBAction func lockButtonPressed(_ sender: Any) {
     
-        currentNote.flipLockStatus()
+        lockNote = true
         navigationController?.popViewController(animated: true)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         if self.isMovingFromParent {
             // The back button was pressed, save the text
-            if noteTextView.text != "" {
+            if noteTextView.text != "" && noteTextView.text != currentNote.message {
                 currentNote.setMessage(message: noteTextView.text)
-                currentNote.saveToData { (success) in
+                currentNote.saveToData(db: db) { (success) in
                     if success {
                         print("We Saved the note!!!!!!")
                     } else {
@@ -42,16 +43,16 @@ class NoteDetailVC: UIViewController {
                     }
                 }
             } else {
-//                let alertVC = UIAlertController(title: "Empty Text", message: "Did you want to delete this note?", preferredStyle: .alert)
-//                let actionYes = UIAlertAction(title: "Yes", style: .destructive, handler: { action in
-//                    // Delete the current note
-//                    notesArray.remove(at: self.index)
-//                })
-//                alertVC.addAction(actionYes)
-//                let actionNo = UIAlertAction(title: "No", style: .cancel, handler: nil) // Do nothing and allow it to go back
-//                alertVC.addAction(actionNo)
-//                self.present(alertVC, animated: true)
-
+                if lockNote {
+                    currentNote.flipLockStatus()
+                    currentNote.saveToData(db: db) { (success) in
+                        if success {
+                            print("We Saved the note!!!!!!")
+                        } else {
+                            print("We DID NOT Save the note!!!!!!")
+                        }
+                    }
+                }
             }
         }
     }

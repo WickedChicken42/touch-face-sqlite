@@ -14,15 +14,14 @@ class Note {
     private var noteUUID: UUID
     public private(set) var message: String
     public private(set) var lockStatus: LockStatus
-
-    // Holds the data object for reading and saving
-    //public private(set) var noteData: NoteData?
+    public private(set) var timestamp: Date
     
     // Default new note initializer
     init() {
         self.noteUUID = NEW_UUID!
         self.message = ""
         self.lockStatus = .unlocked
+        self.timestamp = Date()
     }
 
     // New note initializer with message and lock status
@@ -31,30 +30,30 @@ class Note {
         self.noteUUID = NEW_UUID!
         self.message = message
         self.lockStatus = lockStatus
-        //self.noteData = nil
+        self.timestamp = Date()
     }
 
-    init(noteData: NoteData) {
+    // Used to initialize a Note object from SQLite data
+    static func loadFromData(uuidText: String, message: String, lockStateRaw: String, timeInterval1970: Int32) -> Note {
     
-        self.noteUUID = noteData.noteUUID!
-        self.message = noteData.noteMessage!
-        self.lockStatus =  LockStatus(rawValue: noteData.noteLockState!)!
-        //self.noteData = noteData
-    }
-    
-    func loadNoteData(noteData: NoteData) {
+        let newNote = Note()
         
-        noteData.noteUUID = self.noteUUID
-        noteData.noteMessage = self.message
-        noteData.noteLockState = self.lockStatus.rawValue
+        newNote.noteUUID = UUID(uuidString: uuidText)!
+        newNote.message = message
+        newNote.lockStatus = LockStatus(rawValue: lockStateRaw)!
+        newNote.timestamp = Date(timeIntervalSince1970: TimeInterval(timeInterval1970))
+        
+        return newNote
     }
     
     func setLockStatus(isLocked: Bool) {
         if isLocked { lockStatus = .locked } else { lockStatus = .unlocked }
+        self.timestamp = Date()
     }
     
     func setMessage(message: String) {
         self.message = message
+        self.timestamp = Date()
     }
     
     func isNoteLocked() -> Bool {
@@ -71,161 +70,180 @@ class Note {
         } else {
             self.lockStatus = .locked
         }
+        self.timestamp = Date()
     }
     
-    // Function to save the Note to persisten storage
-    func saveToData(completion: (_ finished: Bool) -> ()) {
-        
-        //let appDelegate = UIApplication.shared.delegate as? AppDelegate
-        // Using this version as it does not require me to Import UIKit into my class
-        guard let appDelegate : AppDelegate = AppDelegate().sharedInstance() else { return }
-        
-        // Getting the Managed Context to work with the CoreData tools
-        guard let managedContext = appDelegate.persistentContainer.viewContext as NSManagedObjectContext? else { return }
-        // Creating the new goal data object as Goal data type from the managed context
+    // Function to save the Note to persistent storage
+    func saveToData(db: OpaquePointer?, completion: (_ finished: Bool) -> ()) {
 
-        if noteUUID == NEW_UUID {
-            // This is a new note so we just create it
+        //creating a statement
+        var stmt: OpaquePointer?
+        
+        //the insert query
+        var queryString: String
+        if self.noteUUID == NEW_UUID {
 
-            // Create a new NoteData object to work with
-            let newNoteData = NoteData(context: managedContext)
+            // Set a real UUID to the object before saving it
+            self.noteUUID = UUID()
             
-            // Setting the properties of the Goal data obejct
-            newNoteData.noteUUID = UUID()
-            newNoteData.noteMessage = self.message
-            newNoteData.noteLockState = self.lockStatus.rawValue
+            // Define the INSERT statement with placeholders
+            queryString = "INSERT INTO Notes (noteUUIDText, message, lockStatusRaw, timestamp1970) VALUES (?,?,?,?)"
 
-            // Save the data to storage
-            do {
-                try managedContext.save()
-                print("Successfuly saved data!!")
-                completion(true)
-            } catch {
-                debugPrint("Could not save \(error.localizedDescription)")
-                completion(false)
+            // Preparing the query with '_v2' due to use of placeholders '?'
+            if sqlite3_prepare_v2(db, queryString, -1, &stmt, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("error preparing insert: \(errmsg)")
+                return
             }
 
-        } else {
-            // Saving an existig item by retreiving it from storage and then saving it
+            // Binding the sql parameters
 
-            let fetchRequest = NSFetchRequest<NoteData>(entityName: "NoteData")
-            // create an NSPredicate to get the instance you want to make change
-            let predicate = NSPredicate(format: "noteUUID = %@", self.noteUUID.uuidString)
-            fetchRequest.predicate = predicate
+            // Paramter: noteUUID
+            if sqlite3_bind_text(stmt, 1, self.noteUUID.uuidString.asUTF8(), -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding noteUUID: \(errmsg)")
+                return
+            }
+
+            // Paramter: message
+            if sqlite3_bind_text(stmt, 2, self.message.asUTF8(), -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding message: \(errmsg)")
+                return
+            }
             
-            // Using a Do/Try/Catch to make the final save call of the managed context to write the data to storage
-            // Also setting the value of the completion handler based on our success in saving the data.
-            do {
-                // Loading the goals array with the data retreived from storage
-                let noteDataArray = try managedContext.fetch(fetchRequest) as [NoteData]
-                
-                // Setting the properties of the Goal data obejct
-                if noteDataArray.count == 1 {
-                    print("Successfully fetched 1 note of data for updating.")
-                    noteDataArray[0].noteMessage = self.message
-                    noteDataArray[0].noteLockState = self.lockStatus.rawValue
+            // Paramter: lockStatus - not sure why this didn't require the utf8 treatment
+            if sqlite3_bind_text(stmt, 3, self.lockStatus.rawValue, -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding name: \(errmsg)")
+                return
+            }
+            
+            // Paramter: timestamp in UTC UNIX time
+            if sqlite3_bind_int(stmt, 4, Int32(self.timestamp.timeIntervalSince1970)) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding timestamp: \(errmsg)")
+                return
+            }
+            
+        } else {
 
-                    try managedContext.save()
+            // Define the UPDATE statement with placeholders
+            queryString = "UPDATE Notes SET message = ?, lockStatusRaw = ?, timestamp1970 = ? WHERE noteUUIDText = ?"
 
-                    completion(true)
-                } else if noteDataArray.count == 0 {
-                    debugPrint("Could not fetch note data with UUID: \(self.noteUUID.uuidString)")
-                    completion(false)
-                    
-                } else {
-                    debugPrint("Returned more than one note data with UUID: \(self.noteUUID.uuidString)")
-                    completion(false)
-                }
+            // Preparing the query with '_v2' due to use of placeholders '?'
+            if sqlite3_prepare_v2(db, queryString, -1, &stmt, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("error preparing insert: \(errmsg)")
+                return
+            }
 
-            } catch {
-                debugPrint("Could not fetch note data: \(error.localizedDescription)")
-                completion(false)
+            // Binding the sql parameters
+
+            // Paramter: message
+            if sqlite3_bind_text(stmt, 1, self.message.asUTF8(), -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding message: \(errmsg)")
+                return
+            }
+            
+            // Paramter: lockStatus - not sure why this didn't need the utf8 treatment
+            if sqlite3_bind_text(stmt, 2, self.lockStatus.rawValue, -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding name: \(errmsg)")
+                return
+            }
+            
+            // Paramter: timestamp in UTC UNIX time
+            if sqlite3_bind_int(stmt, 3, Int32(self.timestamp.timeIntervalSince1970)) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding timestamp: \(errmsg)")
+                return
+            }
+
+            // Paramter: noteUUID
+            if sqlite3_bind_text(stmt, 4, self.noteUUID.uuidString.asUTF8(), -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding noteUUID: \(errmsg)")
+                return
             }
 
         }
         
+        // Executing the query to insert/update values
+        if sqlite3_step(stmt) != SQLITE_DONE {
+            let errmsg = String(cString: sqlite3_errmsg(db)!)
+            debugPrint("failure inserting hero: \(errmsg)")
+            return
+        }
+
+        // Finalize the SQL execution
+        sqlite3_finalize(stmt)
+
     }
 
-    // Retreives the data from persisten storage and loads them to the local goals array
-    static func getNotesFromData(completion: (_ complete: Bool) -> ()) -> [Note] {
-        
-        // Using this version as it does not require me to Import UIKit into my class
-        guard let appDelegate : AppDelegate = AppDelegate().sharedInstance() else { return [Note]() }
+    // Retreives the data from persistent storage and loads them to the local goals array
+    static func getNotesFromData(db: OpaquePointer?, completion: (_ complete: Bool) -> ()) -> [Note] {
 
-        // Get the managed context for this app
-        guard let managedContext = appDelegate.persistentContainer.viewContext as? NSManagedObjectContext else  { return [Note]() }
-        
-        // Define the request we are making as a type Goal using the entity name "Goal" from the data model
-        let fetchRequest = NSFetchRequest<NoteData>(entityName: "NoteData")
+        // Define an empty note array
         var notes = [Note]()
         
-        do {
-            // Loading the goals array with the data retreived from storage
-            let noteDataArray = try managedContext.fetch(fetchRequest)
-            print("Successfully fetched note data.")
+        // Selecting all notes in descending order
+        let queryString = "SELECT * FROM Notes ORDER BY timestamp1970 DESC"
+        
+        // Statement pointer
+        var stmt:OpaquePointer?
+        
+        // Preparing the query - no '_v2' since there are no placeholders
+        if sqlite3_prepare(db, queryString, -1, &stmt, nil) != SQLITE_OK {
+            let errmsg = String(cString: sqlite3_errmsg(db)!)
+            debugPrint("error preparing insert: \(errmsg)")
+            return [Note]() // Return an empty array if this fails
+        }
+        
+        // Traversing through all the records
+        while(sqlite3_step(stmt) == SQLITE_ROW) {
+            let noteUUIDText = String(cString: sqlite3_column_text(stmt, 0))
+            let message = String(cString: sqlite3_column_text(stmt, 1))
+            let lockStateRaw = String(cString: sqlite3_column_text(stmt, 2))
+            let timeInterval1970 = sqlite3_column_int(stmt, 3)
             
-            var newNote: Note
-            for dataItem in noteDataArray {
-                newNote = Note(noteData: dataItem)
-                notes.append(newNote)
-            }
-            
-            completion(true)
-            
-        } catch {
-            debugPrint("Could not fetch note data: \(error.localizedDescription)")
-            completion(false)
+            //adding values to list
+            notes.append(Note.loadFromData(uuidText: noteUUIDText, message: String(describing: message), lockStateRaw: String(describing: lockStateRaw), timeInterval1970: timeInterval1970))
         }
         
         return notes
     }
 
-    // Used to remove a specific goal from our data based on the indexPath being passed in
-    func deleteFromData(completion: (_ complete: Bool) -> ()) {
+    // Used to remove this note from our data
+    func deleteFromData(db: OpaquePointer?, completion: (_ complete: Bool) -> ()) {
         
-        // Using this version as it does not require me to Import UIKit into my class
-        guard let appDelegate : AppDelegate = AppDelegate().sharedInstance() else { return }
-
-        // Get the managed context for this app
-        guard let managedContext = appDelegate.persistentContainer.viewContext as? NSManagedObjectContext else { return }
+        // Delete statment for a single note by noteUUIDText using sa placeholder
+        let deleteStatementStirng = "DELETE FROM Notes WHERE noteUUIDText = ?"
         
-        let fetchRequest = NSFetchRequest<NoteData>(entityName: "NoteData")
-        // create an NSPredicate to get the instance you want to make change
-        let predicate = NSPredicate(format: "noteUUID = %@", self.noteUUID.uuidString)
-        fetchRequest.predicate = predicate
-
-        do {
-            // Loading the goals array with the data retreived from storage
-            let noteDataArray = try managedContext.fetch(fetchRequest)
-        
-            if noteDataArray.count == 1 {
-                print("Successfully fetched note data.")
-                
-                // Delete the item from our managed context
-                managedContext.delete(noteDataArray[0])
-                
-                completion(true)
-            } else if noteDataArray.count == 0 {
-                debugPrint("Could not fetch note data: \(self.noteUUID.uuidString)")
-                completion(false)
-
-            } else {
-                debugPrint("Returned more than one note data: \(self.noteUUID.uuidString)")
-                completion(false)
-            }
+        var deleteStatement: OpaquePointer? = nil
+        // Preparing the query with '_v2' due to use of placeholders '?'
+        if sqlite3_prepare_v2(db, deleteStatementStirng, -1, &deleteStatement, nil) == SQLITE_OK {
             
-        } catch {
-            debugPrint("Could not fetch note data: \(error.localizedDescription)")
-            completion(false)
-        }
+            // Paramter: noteUUID
+            if sqlite3_bind_text(deleteStatement, 1, self.noteUUID.uuidString.asUTF8(), -1, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db)!)
+                debugPrint("failure binding noteUUID: \(errmsg)")
+                return
+            }
 
-        // Perform a Do/Try/Catch to save the context which will remove the deleted item from storage
-        do {
-            try managedContext.save()
-            print("Successfully deleted a goal!")
-        } catch {
-            debugPrint("Could not delete a goal: \(error.localizedDescription)")
+            // Execute the delete statement
+            if sqlite3_step(deleteStatement) == SQLITE_DONE {
+                debugPrint("Successfully deleted row.")
+            } else {
+                debugPrint("Could not delete row.")
+            }
+        } else {
+            debugPrint("DELETE statement could not be prepared")
         }
+        
+        sqlite3_finalize(deleteStatement)
+    
     }
 
 }

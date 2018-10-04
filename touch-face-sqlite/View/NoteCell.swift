@@ -12,6 +12,7 @@ class NoteCell: UITableViewCell {
 
     @IBOutlet var messageLbl: UILabel!
     @IBOutlet var lockImageView: UIImageView!
+    @IBOutlet var timestampLbl: UILabel!
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -28,6 +29,9 @@ class NoteCell: UITableViewCell {
             messageLbl.text = note.message
             lockImageView.isHidden = true
         }
+
+        // Formating the timestamp to show date/time in local
+        timestampLbl.text = UTCToLocal(date: note.timestamp.description, fromFormat: DATE_DEFAULT_FORMAT, toFormat: CELL_TIMESTAMP_FORMAT)
     }
 
 }
