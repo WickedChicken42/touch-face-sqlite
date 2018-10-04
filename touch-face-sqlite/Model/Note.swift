@@ -74,8 +74,11 @@ class Note {
     }
     
     // Function to save the Note to persistent storage
-    func saveToData(db: OpaquePointer?, completion: (_ finished: Bool) -> ()) {
+    func saveToData(completion: (_ finished: Bool) -> ()) {
 
+        // Get a reference to the static instsance db
+        let db = SQLiteAccess.instance.db
+        
         //creating a statement
         var stmt: OpaquePointer?
         
@@ -183,7 +186,10 @@ class Note {
     }
 
     // Retreives the data from persistent storage and loads them to the local goals array
-    static func getNotesFromData(db: OpaquePointer?, completion: (_ complete: Bool) -> ()) -> [Note] {
+    static func getNotesFromData(completion: (_ complete: Bool) -> ()) -> [Note] {
+
+        // Get a reference to the static instsance db
+        let db = SQLiteAccess.instance.db
 
         // Define an empty note array
         var notes = [Note]()
@@ -216,8 +222,11 @@ class Note {
     }
 
     // Used to remove this note from our data
-    func deleteFromData(db: OpaquePointer?, completion: (_ complete: Bool) -> ()) {
+    func deleteFromData(completion: (_ complete: Bool) -> ()) {
         
+        // Get a reference to the static instsance db
+        let db = SQLiteAccess.instance.db
+
         // Delete statment for a single note by noteUUIDText using sa placeholder
         let deleteStatementStirng = "DELETE FROM Notes WHERE noteUUIDText = ?"
         

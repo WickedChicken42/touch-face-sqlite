@@ -17,9 +17,6 @@ class NoteVC: UIViewController {
     
     var myNotes: [Note] = []
 
-    // Defined to support SQLite 3
-    var db: OpaquePointer?
-
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
@@ -28,17 +25,18 @@ class NoteVC: UIViewController {
         tableView.dataSource = self
         
         // Create the SQLite database file
-        let fileURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-            .appendingPathComponent("NotesDatabase.sqlite")
-        
-        if sqlite3_open(fileURL.path, &db) != SQLITE_OK {
-            print("error opening database")
-        }
-        
-        if sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS Notes (noteUUIDText TEXT PRIMARY KEY, message TEXT, lockStatusRaw TEXT, timestamp1970 INTEGER)", nil, nil, nil) != SQLITE_OK {
-            let errmsg = String(cString: sqlite3_errmsg(db)!)
-            print("error creating table: \(errmsg)")
-        }
+        SQLiteAccess.instance.openNotesDB(appendingPathComponent: "NotesDatabase.sqlite")
+//        let fileURL = try! FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+//            .appendingPathComponent("NotesDatabase.sqlite")
+//
+//        if sqlite3_open(fileURL.path, &db) != SQLITE_OK {
+//            print("error opening database")
+//        }
+//
+//        if sqlite3_exec(db, "CREATE TABLE IF NOT EXISTS Notes (noteUUIDText TEXT PRIMARY KEY, message TEXT, lockStatusRaw TEXT, timestamp1970 INTEGER)", nil, nil, nil) != SQLITE_OK {
+//            let errmsg = String(cString: sqlite3_errmsg(db)!)
+//            print("error creating table: \(errmsg)")
+//        }
 
     }
 
@@ -104,7 +102,7 @@ class NoteVC: UIViewController {
     // Retreives the data from persistent storage and sets if the table view is hidden
     func fetchCoreDataObjects() {
         
-        myNotes = Note.getNotesFromData(db: db) { (complete) in
+        myNotes = Note.getNotesFromData() { (complete) in
             if complete {
                 // Dunno if I should do something
             }
@@ -158,7 +156,7 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
             authenticateBiometrics(completion: { (authenticated) in
                 if authenticated {
                     self.myNotes[indexPath.row].flipLockStatus()
-                    self.myNotes[indexPath.row].saveToData(db: self.db, completion: { (success) in
+                    self.myNotes[indexPath.row].saveToData(completion: { (success) in
                         if success {
                             debugPrint("Saved the changed Lock Status")
                         }
@@ -180,7 +178,6 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
         guard let noteDetailVC = storyboard?.instantiateViewController(withIdentifier: "NoteDetailVC") as? NoteDetailVC else { return }
         
         noteDetailVC.currentNote = myNotes[indexPath.row]
-        noteDetailVC.db = db
 
         navigationController?.pushViewController(noteDetailVC, animated: true)
         
@@ -208,7 +205,7 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
                 self.authenticateBiometrics(completion: { (authenticated) in
                     if authenticated {
                         // Removes the note from persistent storage
-                        self.myNotes[indexPath.row].deleteFromData(db: self.db, completion: { (success) in
+                        self.myNotes[indexPath.row].deleteFromData(completion: { (success) in
                             if success {
                                 print("We deleted the data - YEA!!!!)")
                             } else {
@@ -228,7 +225,7 @@ extension NoteVC: UITableViewDelegate, UITableViewDataSource {
                 })
             } else {
                 // Removes the note from persistent storage
-                self.myNotes[indexPath.row].deleteFromData(db: self.db, completion: { (success) in
+                self.myNotes[indexPath.row].deleteFromData(completion: { (success) in
                     if success {
                         print("We deleted the data - YEA!!!!)")
                     } else {

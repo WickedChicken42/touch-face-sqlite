@@ -18,6 +18,7 @@
 		270B7E5D215C294F008E2FFC /* NoteCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270B7E5C215C294F008E2FFC /* NoteCell.swift */; };
 		270B7E5F215C2DDF008E2FFC /* NoteDetailVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270B7E5E215C2DDF008E2FFC /* NoteDetailVC.swift */; };
 		270B7E61215C3B63008E2FFC /* Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 270B7E60215C3B63008E2FFC /* Helpers.swift */; };
+		274631FD2165D2EA00382C05 /* SQLiteAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274631FC2165D2EA00382C05 /* SQLiteAccess.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +35,7 @@
 		270B7E5C215C294F008E2FFC /* NoteCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteCell.swift; sourceTree = "<group>"; };
 		270B7E5E215C2DDF008E2FFC /* NoteDetailVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailVC.swift; sourceTree = "<group>"; };
 		270B7E60215C3B63008E2FFC /* Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Helpers.swift; sourceTree = "<group>"; };
+		274631FC2165D2EA00382C05 /* SQLiteAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteAccess.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +120,7 @@
 			children = (
 				270B7E5A215C2618008E2FFC /* NoteObjects.swift */,
 				270B7E60215C3B63008E2FFC /* Helpers.swift */,
+				274631FC2165D2EA00382C05 /* SQLiteAccess.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -201,6 +204,7 @@
 				270B7E5D215C294F008E2FFC /* NoteCell.swift in Sources */,
 				270B7E40215C2119008E2FFC /* AppDelegate.swift in Sources */,
 				270B7E57215C252D008E2FFC /* Note.swift in Sources */,
+				274631FD2165D2EA00382C05 /* SQLiteAccess.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

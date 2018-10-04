@@ -13,7 +13,6 @@ class NoteDetailVC: UIViewController {
     @IBOutlet var noteTextView: UITextView!
     
     var currentNote: Note!
-    var db: OpaquePointer?
     var lockNote: Bool = false
     
     override func viewDidLoad() {
@@ -35,7 +34,7 @@ class NoteDetailVC: UIViewController {
             // The back button was pressed, save the text
             if noteTextView.text != "" && noteTextView.text != currentNote.message {
                 currentNote.setMessage(message: noteTextView.text)
-                currentNote.saveToData(db: db) { (success) in
+                currentNote.saveToData() { (success) in
                     if success {
                         print("We Saved the note!!!!!!")
                     } else {
@@ -45,7 +44,7 @@ class NoteDetailVC: UIViewController {
             } else {
                 if lockNote {
                     currentNote.flipLockStatus()
-                    currentNote.saveToData(db: db) { (success) in
+                    currentNote.saveToData() { (success) in
                         if success {
                             print("We Saved the note!!!!!!")
                         } else {
